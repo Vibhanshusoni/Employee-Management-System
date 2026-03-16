@@ -2,7 +2,6 @@ package com.example.Employee.Service;
 
 import com.example.Employee.Entity.User;
 import com.example.Employee.Repository.UserRepository;
-import com.example.Employee.config.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class LoginService {
     private final UserRepository userRepository;
     private static final Logger logger =
-            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+            LoggerFactory.getLogger(LoginService.class);
 
     public void loginSuccess(User user) {
 

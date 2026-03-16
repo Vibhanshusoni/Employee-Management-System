@@ -3,7 +3,6 @@ package com.example.Employee.Service;
 import com.example.Employee.Entity.BlockType;
 import com.example.Employee.Entity.User;
 import com.example.Employee.Repository.UserRepository;
-import com.example.Employee.config.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +15,7 @@ import java.time.LocalDateTime;
 public class UserSecurityService {
     private final UserRepository userRepository;
     private static final Logger logger =
-            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+            LoggerFactory.getLogger(UserSecurityService.class);
     private static final int MAX_ATTEMPTS = 5;
 
     public void loginFailed(User user) {

@@ -1,9 +1,10 @@
-package com.example.Employee.config;
+package com.example.Employee.Security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -13,10 +14,11 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "mysecretkeymysecretkeymysecretkey";
+    @Value("${jwt.secret}")
+    private String secret;
 
     private SecretKey getSignKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
     public String extractUsername(String token) {
@@ -39,12 +41,15 @@ public class JwtUtil {
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
+
         final String username = extractUsername(token);
+
         return username.equals(userDetails.getUsername()) &&
-                !extractAllClaims(token).getExpiration().before(new Date());
+                !extractExpiration(token).before(new Date());
     }
 
     private Claims extractAllClaims(String token) {
+
         return Jwts.parser()
                 .verifyWith(getSignKey())
                 .build()
@@ -53,6 +58,7 @@ public class JwtUtil {
     }
 
     public String generateToken(UserDetails userDetails) {
+
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
                 .claim("type", "access")
@@ -68,7 +74,7 @@ public class JwtUtil {
                 .setSubject(userDetails.getUsername())
                 .claim("type", "refresh")
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000))
+                .setExpiration(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000))
                 .signWith(getSignKey())
                 .compact();
     }

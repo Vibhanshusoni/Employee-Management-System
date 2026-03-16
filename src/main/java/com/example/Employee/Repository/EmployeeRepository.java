@@ -16,6 +16,7 @@ public interface EmployeeRepository {
     Optional<Employee> findByEmail(String email);
 
     Optional<Employee> findByUserUsername(String username);
+
     long countByDepartment(String department);
 
     void deleteById(Long id);

@@ -1,4 +1,4 @@
-package com.example.Employee.config;
+package com.example.Employee.Security;
 
 import com.example.Employee.Entity.User;
 import com.example.Employee.Repository.UserRepository;
@@ -35,7 +35,7 @@ public class OAuthSuccessHandler implements AuthenticationSuccessHandler {
 
         assert oAuth2User != null;
         String email = oAuth2User.getAttribute("email");
-        if(email == null){
+        if (email == null) {
             email = oAuth2User.getAttribute("login");
         }
         String name = oAuth2User.getAttribute("name");

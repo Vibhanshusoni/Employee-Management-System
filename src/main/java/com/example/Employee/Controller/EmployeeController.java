@@ -6,12 +6,12 @@ import com.example.Employee.Entity.RefreshToken;
 import com.example.Employee.Entity.User;
 import com.example.Employee.Exceptions.EmployeeNotFoundException;
 import com.example.Employee.Repository.UserRepository;
+import com.example.Employee.Security.JwtUtil;
 import com.example.Employee.Service.CustomUserDetailsService;
 import com.example.Employee.Service.EmployeeService;
 import com.example.Employee.Service.RefreshTokenService;
 import com.example.Employee.Service.ServiceImpl.DashboardService;
 import com.example.Employee.Service.TokenBlacklistService;
-import com.example.Employee.config.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -57,18 +56,18 @@ public class EmployeeController {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> {
                     logger.error("User not found: {}", request.getUsername());
-                    return new RuntimeException("User not found");
+                    throw new EmployeeNotFoundException("User not found");
                 });
 
         logger.debug("User record found in database for {}", user.getUsername());
 
         if (!user.isEnabled()) {
             logger.warn("User {} is permanently blocked", user.getUsername());
-            throw new RuntimeException("Account permanently blocked");
+            throw new IllegalArgumentException("Account permanently blocked");
         }
 
         if (user.getBlockType() == BlockType.PERMANENT) {
-            throw new RuntimeException("Account permanently blocked");
+            throw new IllegalArgumentException("Account permanently blocked");
         }
 
         if (user.isBlocked() && user.getBlockType() == BlockType.TEMPORARY) {
@@ -118,18 +117,16 @@ public class EmployeeController {
                     )
             );
 
-        } catch (BadCredentialsException ex) {
+        } catch (Exception ex) {
 
             user.setFailedAttempts(user.getFailedAttempts() + 1);
 
             if (user.getFailedAttempts() >= 5) {
-
                 user.setBlocked(true);
                 user.setBlockType(BlockType.TEMPORARY);
                 user.setLockoutTime(LocalDateTime.now().plusMinutes(30));
 
                 logger.error("User {} locked due to too many attempts", user.getUsername());
-
             }
 
             userRepository.save(user);
@@ -178,7 +175,7 @@ public class EmployeeController {
 
         if (request.getRefreshToken() == null || request.getRefreshToken().isEmpty()) {
             logger.error("Refresh token missing in request");
-            throw new RuntimeException("Refresh token required");
+            throw new IllegalArgumentException("Refresh token required");
         }
 
         logger.debug("Validating refresh token");
@@ -292,7 +289,7 @@ public class EmployeeController {
         logger.warn("User {} requested self permanent block", username);
 
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("User not found"));
 
         user.setEnabled(false);
         user.setBlocked(true);

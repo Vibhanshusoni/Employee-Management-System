@@ -25,10 +25,12 @@ public class EmployeeApplication {
     public ModelMapper modelMapper() {
         return new ModelMapper();
     }
+
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration config) throws Exception {

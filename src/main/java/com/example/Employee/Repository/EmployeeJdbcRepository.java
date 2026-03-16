@@ -31,9 +31,11 @@ public class EmployeeJdbcRepository implements EmployeeRepository {
             ps.setString(1, emp.getName());
             ps.setString(2, emp.getEmail());
             ps.setString(3, emp.getDepartment());
+
             ps.executeUpdate();
+
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while saving employee", e);
         }
 
         return emp;
@@ -41,6 +43,7 @@ public class EmployeeJdbcRepository implements EmployeeRepository {
 
     @Override
     public List<Employee> findAll() {
+
         List<Employee> list = new ArrayList<>();
         String sql = "SELECT * FROM employees";
 
@@ -49,15 +52,11 @@ public class EmployeeJdbcRepository implements EmployeeRepository {
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
-                Employee emp = new Employee();
-                emp.setId(rs.getLong("id"));
-                emp.setName(rs.getString("name"));
-                emp.setEmail(rs.getString("email"));
-                emp.setDepartment(rs.getString("department"));
-                list.add(emp);
+                list.add(mapEmployee(rs));
             }
+
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while fetching employees", e);
         }
 
         return list;
@@ -65,57 +64,53 @@ public class EmployeeJdbcRepository implements EmployeeRepository {
 
     @Override
     public Optional<Employee> findById(Long id) {
+
         String sql = "SELECT * FROM employees WHERE id=?";
 
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setLong(1, id);
+
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                Employee emp = new Employee();
-                emp.setId(rs.getLong("id"));
-                emp.setName(rs.getString("name"));
-                emp.setEmail(rs.getString("email"));
-                emp.setDepartment(rs.getString("department"));
-                return Optional.of(emp);
+                return Optional.of(mapEmployee(rs));
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while fetching employee by id", e);
         }
 
-        return Optional.empty(); // implement same as above pattern
+        return Optional.empty();
     }
 
     @Override
     public Optional<Employee> findByEmail(String email) {
+
         String sql = "SELECT * FROM employees WHERE email=?";
 
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setString(1, email);
+
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                Employee emp = new Employee();
-                emp.setId(rs.getLong("id"));
-                emp.setName(rs.getString("name"));
-                emp.setEmail(rs.getString("email"));
-                emp.setDepartment(rs.getString("department"));
-                return Optional.of(emp);
+                return Optional.of(mapEmployee(rs));
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while fetching employee by email", e);
         }
+
         return Optional.empty();
     }
 
     @Override
     public Optional<Employee> findByUserUsername(String username) {
+
         String sql = """
                 SELECT e.*
                 FROM employees e
@@ -127,19 +122,15 @@ public class EmployeeJdbcRepository implements EmployeeRepository {
              PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setString(1, username);
+
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                Employee emp = new Employee();
-                emp.setId(rs.getLong("id"));
-                emp.setName(rs.getString("name"));
-                emp.setEmail(rs.getString("email"));
-                emp.setDepartment(rs.getString("department"));
-                return Optional.of(emp);
+                return Optional.of(mapEmployee(rs));
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while fetching employee by username", e);
         }
 
         return Optional.empty();
@@ -147,50 +138,73 @@ public class EmployeeJdbcRepository implements EmployeeRepository {
 
     @Override
     public long countByDepartment(String department) {
-        String sql = "Select count(*) from employee where department = ?";
+
+        String sql = "SELECT COUNT(*) FROM employees WHERE department = ?";
 
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
+
             ps.setString(1, department);
+
             ResultSet rs = ps.executeQuery();
+
             if (rs.next()) {
                 return rs.getLong(1);
             }
+
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while counting employees by department", e);
         }
+
         return 0;
     }
 
-    public long count(String employee) {
-        String sql = "Select count(*) from employee ";
+    @Override
+    public long count() {
+
+        String sql = "SELECT COUNT(*) FROM employees";
 
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
+
             if (rs.next()) {
                 return rs.getLong(1);
             }
+
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while counting employees", e);
         }
+
         return 0;
     }
 
     @Override
     public void deleteById(Long id) {
+
         String sql = "DELETE FROM employees WHERE id=?";
+
         try (Connection con = dataSource.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
+
             ps.setLong(1, id);
             ps.executeUpdate();
+
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Database error while deleting employee", e);
         }
     }
 
-    @Override
-    public long count() {
-        return 0;
+    private Employee mapEmployee(ResultSet rs) throws Exception {
+
+        Employee emp = new Employee();
+
+        emp.setId(rs.getLong("id"));
+        emp.setName(rs.getString("name"));
+        emp.setEmail(rs.getString("email"));
+        emp.setDepartment(rs.getString("department"));
+
+        return emp;
     }
 }
+

@@ -1,6 +1,7 @@
-package com.example.Employee.config;
+package com.example.Employee.Security;
 
 import com.example.Employee.Entity.User;
+import com.example.Employee.Exceptions.EmployeeNotFoundException;
 import com.example.Employee.Repository.UserRepository;
 import com.example.Employee.Service.TokenBlacklistService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -8,8 +9,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -23,26 +24,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @EqualsAndHashCode(callSuper = true)
-@Data
+@RequiredArgsConstructor
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-
     private static final Logger logger =
             LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
     private final TokenBlacklistService tokenBlacklist;
-
     private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil,
-                                   UserDetailsService userDetailsService, TokenBlacklistService tokenBlacklist, UserRepository userRepository) {
-        this.jwtUtil = jwtUtil;
-        this.userDetailsService = userDetailsService;
-        this.tokenBlacklist = tokenBlacklist;
-        this.userRepository = userRepository;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -51,7 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getServletPath();
-
+//To skip the Validation filter
         if (path.startsWith("/api/login") ||
                 path.startsWith("/api/refresh") ||
                 path.startsWith("/oauth2") ||
@@ -84,7 +76,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 User user = userRepository.findByUsername(username)
-                        .orElseThrow(() -> new RuntimeException("User not found"));
+                        .orElseThrow(() -> new EmployeeNotFoundException("User not found"));
 
                 if (!user.isEnabled() || user.isBlocked()) {
                     logger.warn("Blocked/disabled user attempted access: {}", username);
@@ -119,7 +111,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
 
         } catch (Exception ex) {
-            logger.error("Invalid JWT token: {}", ex.getMessage());
+            logger.error("JWT validation failed", ex);
             sendUnauthorized(response, "Invalid JWT token");
             return;
         }

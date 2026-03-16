@@ -2,7 +2,7 @@ package com.example.Employee.Service;
 
 import com.example.Employee.Entity.TokenBlacklist;
 import com.example.Employee.Repository.TokenBlacklistRepository;
-import com.example.Employee.config.JwtAuthenticationFilter;
+import com.example.Employee.Security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ import java.util.Set;
 @Service
 public class TokenBlacklistService {
     private static final Logger logger =
-            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+            LoggerFactory.getLogger(TokenBlacklistService.class);
     private final Set<String> blacklist = new HashSet<>();
 
     public void add(String token) {

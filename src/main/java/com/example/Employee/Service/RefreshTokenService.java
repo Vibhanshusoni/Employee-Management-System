@@ -77,7 +77,7 @@ public class RefreshTokenService {
 
         RefreshToken newToken = new RefreshToken();
 
-        newToken.setToken("rt_" + UUID.randomUUID().toString());
+        newToken.setToken("rt_" + UUID.randomUUID());
         newToken.setUsername(oldToken.getUsername());
         newToken.setExpiryDate(LocalDateTime.now().plusDays(7));
         newToken.setRevoked(false);

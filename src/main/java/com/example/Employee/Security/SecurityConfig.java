@@ -1,4 +1,4 @@
-package com.example.Employee.config;
+package com.example.Employee.Security;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/login", "/api/refresh", "/oauth2/**", "/login/**").permitAll()
                 .requestMatchers("/api/me").permitAll()
                 .requestMatchers("/api/self-block").permitAll()
-                //hasAnyAuthority("USER","ADMIN")
                 .requestMatchers("/api/logout").authenticated()
                 .requestMatchers("/api/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
