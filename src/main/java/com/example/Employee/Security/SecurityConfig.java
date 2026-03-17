@@ -35,6 +35,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/me").permitAll()
                 .requestMatchers("/api/self-block").permitAll()
                 .requestMatchers("/api/logout").authenticated()
+                .requestMatchers(
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui.html"
+                ).permitAll()
                 .requestMatchers("/api/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
         );
@@ -42,7 +47,14 @@ public class SecurityConfig {
                 exception.authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json");
-                    response.getWriter().write("{\"error\":\"Unauthorized The request is unauthenticated please pass the correct auth credentials.\"}");
+                    response.getWriter().write("""
+                            {
+                              "status":401,
+                              "error":"Unauthorized",
+                              "message":"Authentication required",
+                              "path":"%s"
+                            }
+                            """.formatted(request.getRequestURI()));
                 })
         );
 

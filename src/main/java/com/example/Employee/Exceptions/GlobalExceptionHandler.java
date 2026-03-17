@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -88,6 +89,40 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
+
+    /*-------------------------------- SPRING VALIDATION EXCEPTION --------------------------------*/
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getBindingResult().getFieldError().getDefaultMessage(),
+                request.getRequestURI(),
+                "Validation failed",
+                LocalDateTime.now().plusMinutes(15)
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    /*-------------------------------- INVALID EMAIL EXCEPTION --------------------------------*/
+
+    @ExceptionHandler(InvalidEmailException.class)
+    public ResponseEntity<String> handleInvalidEmail(InvalidEmailException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    /*-------------------------------- EMPTY EMAIL EXCEPTION --------------------------------*/
+
+    @ExceptionHandler(EmptyEmailException.class)
+    public ResponseEntity<String> handleEmptyEmail(EmptyEmailException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
 
     /*-------------------------------- GENERIC EXCEPTION --------------------------------*/
 

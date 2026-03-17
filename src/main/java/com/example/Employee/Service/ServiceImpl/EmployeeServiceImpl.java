@@ -5,6 +5,8 @@ import com.example.Employee.Dto.UserDto;
 import com.example.Employee.Entity.Employee;
 import com.example.Employee.Entity.User;
 import com.example.Employee.Exceptions.EmployeeNotFoundException;
+import com.example.Employee.Exceptions.EmptyEmailException;
+import com.example.Employee.Exceptions.InvalidEmailException;
 import com.example.Employee.Exceptions.UsernameAlreadyExistsException;
 import com.example.Employee.Repository.EmployeeRepository;
 import com.example.Employee.Repository.UserRepository;
@@ -15,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.util.List;
 
@@ -29,14 +32,25 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
+    /*-------------------------------------------EmailValidation---------------------------------------------*/
 
+    private boolean isValidEmail(String email) {
+        String regex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+        return email != null && email.matches(regex);
+    }
     /*-------------------------------------------AddNewEmployee---------------------------------------------*/
 
     @Override
     public EmployeeDto createEmployee(EmployeeDto emp) {
 
         logger.info("Admin requested to create employee with username: {}", emp.getUsername());
+        if (emp.getEmail() == null || emp.getEmail().isBlank()) {
+            throw new EmptyEmailException("Email cannot be empty");
+        }
 
+        if (!isValidEmail(emp.getEmail())) {
+            throw new InvalidEmailException("Invalid email format");
+        }
         if (emp.getUsername() == null || emp.getPassword() == null) {
             logger.error("Username or password is missing for employee creation");
             throw new RuntimeException("Username and password are required");

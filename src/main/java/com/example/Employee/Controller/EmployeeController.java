@@ -1,17 +1,16 @@
 package com.example.Employee.Controller;
 
 import com.example.Employee.Dto.*;
-import com.example.Employee.Entity.BlockType;
-import com.example.Employee.Entity.RefreshToken;
 import com.example.Employee.Entity.User;
-import com.example.Employee.Exceptions.EmployeeNotFoundException;
-import com.example.Employee.Repository.UserRepository;
-import com.example.Employee.Security.JwtUtil;
-import com.example.Employee.Service.CustomUserDetailsService;
+import com.example.Employee.Service.DashboardService;
 import com.example.Employee.Service.EmployeeService;
-import com.example.Employee.Service.RefreshTokenService;
-import com.example.Employee.Service.ServiceImpl.DashboardService;
-import com.example.Employee.Service.TokenBlacklistService;
+import com.example.Employee.Service.LoginService;
+import com.example.Employee.Service.ServiceImpl.AuthServiceImpl;
+import com.example.Employee.Service.UserAdminService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,198 +18,55 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "BearerAuth")
 public class EmployeeController {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeController.class);
     private final EmployeeService employeeService;
     private final DashboardService dashboardService;
-    private final AuthenticationManager authenticationManager;
-    private final JwtUtil jwtUtil;
-    private final CustomUserDetailsService userDetailsService;
-    private final RefreshTokenService refreshTokenService;
-    private final TokenBlacklistService tokenBlacklist;
-    private final UserRepository userRepository;
+    private final LoginService loginService;
+    private final AuthServiceImpl authService;
+    private final UserAdminService userAdminService;
 
     /*---------------------------------------------LOGIN---------------------------------------------*/
-
+    @Operation(summary = "User Login", description = "Authenticate user and generate JWT tokens")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Login successful"),
+            @ApiResponse(responseCode = "401", description = "Invalid credentials")
+    })
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
 
-        logger.info("Login request received for username: {}", request.getUsername());
+        logger.info("Login request received for {}", request.getUsername());
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> {
-                    logger.error("User not found: {}", request.getUsername());
-                    throw new EmployeeNotFoundException("User not found");
-                });
-
-        logger.debug("User record found in database for {}", user.getUsername());
-
-        if (!user.isEnabled()) {
-            logger.warn("User {} is permanently blocked", user.getUsername());
-            throw new IllegalArgumentException("Account permanently blocked");
-        }
-
-        if (user.getBlockType() == BlockType.PERMANENT) {
-            throw new IllegalArgumentException("Account permanently blocked");
-        }
-
-        if (user.isBlocked() && user.getBlockType() == BlockType.TEMPORARY) {
-
-            if (user.getLockoutTime() != null &&
-                    user.getLockoutTime().isBefore(LocalDateTime.now())) {
-
-                logger.info("Temporary lock expired for {}", user.getUsername());
-
-                user.setBlocked(false);
-                user.setFailedAttempts(0);
-                user.setBlockType(null);
-                user.setLockoutTime(null);
-
-                userRepository.save(user);
-
-            }
-
-            logger.warn("User {} is currently blocked", user.getUsername());
-
-            if (user.getLockoutTime() != null &&
-                    user.getLockoutTime().isAfter(LocalDateTime.now())) {
-
-                long minutesLeft =
-                        Duration.between(LocalDateTime.now(), user.getLockoutTime()).toMinutes();
-
-                logger.error("User {} is temporarily locked for {} minutes", user.getUsername(), minutesLeft);
-
-                throw new RuntimeException(
-                        "Account locked. Try again after " + minutesLeft + " minutes"
-                );
-            }
-
-            logger.info("Temporary block expired for user {}", user.getUsername());
-        }
-
-        logger.debug("Authenticating user {}", request.getUsername());
-
-        Authentication authentication;
-
-        try {
-
-            authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
-                            request.getPassword()
-                    )
-            );
-
-        } catch (Exception ex) {
-
-            user.setFailedAttempts(user.getFailedAttempts() + 1);
-
-            if (user.getFailedAttempts() >= 5) {
-                user.setBlocked(true);
-                user.setBlockType(BlockType.TEMPORARY);
-                user.setLockoutTime(LocalDateTime.now().plusMinutes(30));
-
-                logger.error("User {} locked due to too many attempts", user.getUsername());
-            }
-
-            userRepository.save(user);
-
-            throw ex;
-        }
-
-        user.setFailedAttempts(0);
-        userRepository.save(user);
-
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-        logger.info("Authentication successful for user {}", userDetails.getUsername());
-
-        logger.debug("Generating access token for user {}", userDetails.getUsername());
-
-        String accessToken = jwtUtil.generateToken(userDetails);
-
-        logger.debug("Generating refresh token for user {}", userDetails.getUsername());
-
-        String refreshToken = refreshTokenService.createRefreshToken(userDetails.getUsername());
-
-        Date expiryDate = jwtUtil.extractExpiration(accessToken);
-
-        logger.info("Tokens generated successfully for user {}", userDetails.getUsername());
-
-        AuthResponse response = new AuthResponse(
-                accessToken,
-                refreshToken,
-                userDetails.getUsername(),
-                LocalDateTime.now(),
-                expiryDate.toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime()
-        );
+        AuthResponse response = loginService.login(request);
 
         return ResponseEntity.ok(response);
     }
 
     /*---------------------------------------------REFRESH TOKEN---------------------------------------------*/
+    @Operation(summary = "Refresh JWT Token")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+            @ApiResponse(responseCode = "401", description = "Invalid refresh token")
+    })
     @PreAuthorize("permitAll()")
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody RefreshRequest request) {
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest request) {
 
         logger.info("Refresh token request received");
 
-        if (request.getRefreshToken() == null || request.getRefreshToken().isEmpty()) {
-            logger.error("Refresh token missing in request");
-            throw new IllegalArgumentException("Refresh token required");
-        }
+        AuthResponse response = authService.refreshToken(request.getRefreshToken());
 
-        logger.debug("Validating refresh token");
-
-        RefreshToken oldToken = refreshTokenService.validate(request.getRefreshToken());
-
-        logger.info("Refresh token validated for user {}", oldToken.getUsername());
-
-        logger.debug("Rotating refresh token");
-
-        RefreshToken newToken = refreshTokenService.rotateToken(oldToken);
-
-        logger.info("Refresh token rotated successfully");
-
-        logger.debug("Loading user details for {}", oldToken.getUsername());
-
-        UserDetails userDetails =
-                userDetailsService.loadUserByUsername(oldToken.getUsername());
-
-        logger.debug("Generating new access token");
-
-        String newAccessToken = jwtUtil.generateToken(userDetails);
-
-        logger.info("New access token generated for {}", oldToken.getUsername());
-
-        return new AuthResponse(
-                newAccessToken,
-                newToken.getToken(),
-                oldToken.getUsername(),
-                LocalDateTime.now(),
-                jwtUtil.extractExpiration(newAccessToken)
-                        .toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime()
-        );
+        return ResponseEntity.ok(response);
     }
 
     /*---------------------------------------------TEMP BLOCKED USERS---------------------------------------------*/
@@ -219,20 +75,14 @@ public class EmployeeController {
     @GetMapping("/temp-blocked")
     public ResponseEntity<?> getTemporaryBlockedUsers() {
 
-        logger.info("Admin requested temporary blocked users list");
-
-        List<User> users = userRepository.findByBlockedTrueAndBlockType(BlockType.TEMPORARY);
+        logger.info("Admin requested temporary blocked users");
+        List<User> users = userAdminService.getTemporaryBlockedUsers();
 
         if (users.isEmpty()) {
-
-            logger.info("No temporarily blocked users found");
-
-            return ResponseEntity.ok("No User is Temporary Blocked");
+            return ResponseEntity.ok("No user is Temporarily blocked");
         }
 
-        logger.info("Found {} temporarily blocked users", users.size());
-
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userAdminService.getTemporaryBlockedUsers());
     }
     /*---------------------------------------------Permanent BLOCKED USERS---------------------------------------------*/
 
@@ -240,42 +90,26 @@ public class EmployeeController {
     @GetMapping("/permanent-blocked")
     public ResponseEntity<?> getPermanentBlockedUsers() {
 
-        logger.info("Admin requested Permanent blocked users list");
+        logger.info("Admin requested permanently blocked users list");
 
-        List<User> users = userRepository.findByBlockedTrueAndBlockType(BlockType.PERMANENT);
+        List<User> users = userAdminService.getPermanentBlockedUsers();
+
         if (users.isEmpty()) {
-
-            logger.info("No permanently blocked users found");
-
-            return ResponseEntity.ok("No User is permanently Blocked");
+            return ResponseEntity.ok("No user is permanently blocked");
         }
-        logger.info("Found {} Permanent blocked users", users.size());
 
         return ResponseEntity.ok(users);
-
     }
-
     /*---------------------------------------------PERMANENT BLOCK---------------------------------------------*/
 
     @PostMapping("/admin/block/{id}")
     public ResponseEntity<String> blockUser(@PathVariable Long id) {
 
-        logger.warn("Admin attempting to permanently block user {}", id);
+        logger.warn("Admin blocking user {}", id);
 
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("User {} not found for blocking", id);
-                    return new EmployeeNotFoundException("User with id " + id + " not found");
-                });
+        userAdminService.blockUser(id);
 
-        user.setEnabled(false);
-        user.setBlocked(true);
-        user.setBlockType(BlockType.PERMANENT);
-
-        userRepository.save(user);
-
-        logger.warn("User {} permanently blocked", id);
-        return ResponseEntity.ok("User's account has been permanently blocked Only can be unblocked by you");
+        return ResponseEntity.ok("User permanently blocked");
     }
 
     /*---------------------------------------------PERMANENT BLOCK By User---------------------------------------------*/
@@ -288,20 +122,10 @@ public class EmployeeController {
 
         logger.warn("User {} requested self permanent block", username);
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new EmployeeNotFoundException("User not found"));
-
-        user.setEnabled(false);
-        user.setBlocked(true);
-        user.setBlockType(BlockType.PERMANENT);
-
-        userRepository.save(user);
-
-        logger.warn("User {} permanently blocked himself", username);
+        userAdminService.selfBlock(username);
 
         return ResponseEntity.ok("Your account has been permanently blocked and can only be unblocked by admin");
     }
-
     /*---------------------------------------------UNBLOCK---------------------------------------------*/
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -310,21 +134,8 @@ public class EmployeeController {
 
         logger.info("Admin attempting to unblock user {}", id);
 
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("User {} not found for unblocking", id);
-                    return new EmployeeNotFoundException("User with id " + id + " not found");
-                });
+        userAdminService.unblockUser(id);
 
-        user.setEnabled(true);
-        user.setBlocked(false);
-        user.setFailedAttempts(0);
-        user.setBlockType(null);
-        user.setLockoutTime(null);
-
-        userRepository.save(user);
-
-        logger.info("User {} successfully unblocked", id);
         return ResponseEntity.ok("User unblocked successfully by Admin");
     }
 
@@ -335,22 +146,10 @@ public class EmployeeController {
 
         logger.info("Logout request received");
 
-        String token = JwtUtil.extractToken(request);
-
-        if (token == null || token.isEmpty()) {
-            logger.warn("Logout failed. Token missing");
-            return ResponseEntity.badRequest().body("Token missing");
-        }
-
-        logger.debug("Adding token to blacklist");
-
-        tokenBlacklist.add(token);
-
-        logger.info("Token successfully blacklisted");
+        authService.logout(request);
 
         return ResponseEntity.ok("Logged out successfully");
     }
-
     /*---------------------------------------------CreateEmployee---------------------------------------------*/
 
     @PreAuthorize("hasRole('ADMIN')")

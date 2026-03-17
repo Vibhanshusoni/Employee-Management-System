@@ -3,12 +3,13 @@ package com.example.Employee.Service.ServiceImpl;
 import com.example.Employee.Dto.DashboardDto;
 import com.example.Employee.Repository.EmployeeRepository;
 import com.example.Employee.Repository.UserRepository;
+import com.example.Employee.Service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class DashboardService {
+public class DashboardServiceImpl implements DashboardService {
 
     private final EmployeeRepository employeeRepo;
     private final UserRepository userRepo;

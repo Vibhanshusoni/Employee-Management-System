@@ -3,7 +3,7 @@ package com.example.Employee.Security;
 import com.example.Employee.Entity.User;
 import com.example.Employee.Exceptions.EmployeeNotFoundException;
 import com.example.Employee.Repository.UserRepository;
-import com.example.Employee.Service.TokenBlacklistService;
+import com.example.Employee.Service.ServiceImpl.TokenBlacklistServiceImpl;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
-    private final TokenBlacklistService tokenBlacklist;
+    private final TokenBlacklistServiceImpl tokenBlacklist;
     private final UserRepository userRepository;
 
 
